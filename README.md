@@ -1,14 +1,16 @@
 # Explainable Disease–Symptom Pattern Mining with Apriori Association Rules
-**CSC172 Data Mining and Analysis Final Project** *Mindanao State University - Iligan Institute of Technology* **Student:** Joshua Radz T. Adlaon, 2022-2534
-**Semester:** AY 2025-2026 Sem 1
+**CSC172 Data Mining and Analysis Final Project**  
+*Mindanao State University – Iligan Institute of Technology*  
+**Student:** Joshua Radz T. Adlaon (2022-2534)  
+**Semester:** AY 2025–2026 | Sem 1  
 
 ## Abstract
 
-Symptom–disease datasets represent each case as a **set of observed symptoms** paired with a **disease label**. While this format is simple, it creates a real interpretability challenge: symptoms often overlap across multiple diseases, and a single symptom rarely provides enough evidence on its own. In many projects, the typical response is to build a predictive model, but predictions alone are not always satisfying for stakeholders—especially when the goal is to explain *why* certain outcomes are suggested, or when the audience is non-technical. This is where Association Rule Mining (ARM) becomes valuable: it produces **transparent “if–then” rules** that can be inspected, validated, and discussed as patterns rather than hidden model weights.
+Symptom–disease datasets are naturally “transactional”: each record can be viewed as a basket of symptoms linked to a disease label. However, interpreting these datasets is not straightforward. Many symptoms are **non-specific** (e.g., fatigue, fever, nausea) and appear across multiple diseases, making it difficult to understand which symptom combinations are meaningful. While predictive models can output a label, they often fail to provide the kind of **transparent reasoning** required in classroom evaluation, auditing, or explainability-focused analysis. In contrast, Association Rule Mining (ARM) produces simple and readable statements—**“if these symptoms appear, then this symptom or disease tends to appear as well”**—and quantifies their strength with standard rule metrics.
 
-This project applies a canonical **Apriori-style mining strategy** to a Kaggle disease–symptom dataset (`dataset.csv`), treating each row as a “basket” of symptoms. The project mines two complementary knowledge views. First, it discovers **Symptom → Symptom** rules to reveal stable co-occurrence patterns—symptom clusters that frequently appear together and can be interpreted as recognizable “signatures” within the dataset. Second, it extends the transaction space with **heterogeneous items** by representing the disease label as a special item (`disease::<DiseaseName>`), enabling the mining of **Class Association Rules (CARs)** in the form **Symptoms → Disease**. This approach stays fully within the ARM framework while directly producing explainable disease-linked rules.
+This project applies a canonical **Apriori-style frequent itemset mining strategy** to the **Disease Symptom Description Dataset** (`dataset.csv`) from Kaggle, treating each patient record as a transaction. The work produces two complementary sets of knowledge. First, it mines **Symptom → Symptom** association rules to uncover stable co-occurrence patterns that can be interpreted as symptom clusters or dataset “signatures.” These rules help answer questions such as: *Which symptoms consistently occur together?* and *Which symptom combinations represent recognizable patterns?* Second, it enables **Class Association Rules (CARs)** by representing the disease label as a heterogeneous item (`disease::<DiseaseName>`), allowing the discovery of **Symptoms → Disease** rules within the same ARM framework. This dual-view design creates both structure-focused insights (symptom clustering) and outcome-linked insights (symptom combinations associated with disease labels).
 
-The project emphasizes presentation-ready outputs: a clean preprocessing pipeline, well-defined transaction construction, rule tables ranked by standard metrics (**support, confidence, lift, leverage**), and visuals that summarize key dataset structure and rule behavior. Exploratory Data Analysis (EDA) is used to motivate parameter choices and to interpret why certain rule patterns emerge—especially in a dataset where classes are perfectly balanced. Rather than claiming clinical validity, the project’s contribution is a clear, defensible, and explainable ARM workflow that demonstrates how frequent itemsets and association rules can extract meaningful structure from symptom data in a way that is easy to present and verify.
+To ensure the project is presentation-ready, the pipeline emphasizes clean preprocessing, reproducible transaction construction, clear rule-ranking tables, and visuals that summarize dataset structure and rule behavior. Rules are evaluated using **support, confidence, lift, and leverage**, where leverage is included to provide a more grounded view of rule usefulness—especially important in a dataset with perfectly balanced class counts. Exploratory Data Analysis (EDA) motivates parameter choices and supports interpretation by showing symptom prevalence, transaction-size distribution, symptom similarity structure, and the connectivity of strong symptom–disease relationships. The contribution of this work is a complete and defensible ARM workflow that produces **interpretable patterns** and **clear visual evidence**, suitable for final project presentation and verification.
 
 ---
 
@@ -49,60 +51,72 @@ The project emphasizes presentation-ready outputs: a clean preprocessing pipelin
 
 ### Problem Statement
 
-Symptom–disease data is typically recorded as a list of symptoms tied to a disease label, which makes it easy to store but challenging to interpret. In practical analysis, several issues appear immediately:
+Disease–symptom datasets are commonly used in educational mining projects because they are easy to store in a table format: one disease label and multiple symptom fields. Yet the moment we attempt to interpret them, several real data-mining challenges appear:
 
-1. **Symptoms overlap heavily across conditions.** Many symptoms (e.g., fatigue, nausea, fever) occur in multiple diseases, so looking at symptoms individually rarely produces a clear explanation. What matters more is the **combination** of symptoms and which symptom groups frequently appear together.
-2. **Pattern discovery is needed before prediction.** Even if a predictive model can output a disease label, users often want to understand the underlying structure of the dataset first:  
-   *Which symptoms form consistent clusters? Which symptom pairs tend to co-occur? Which symptom sets strongly align with a particular disease label?*
-3. **Black-box prediction is not enough for explainability.** If the goal is to communicate insights to a broader audience (e.g., class evaluation, project presentation, or non-technical stakeholders), opaque predictions are not very useful unless they are supported by transparent evidence. Explainability requires outputs that can be read, checked, and defended.
-4. **Noisy symptom text can distort mining results.** Small formatting inconsistencies (underscores, extra spaces, duplicates, missing values) can fragment the item space—causing a single symptom to be treated as multiple different items and weakening the quality of mined patterns.
+1. **Symptoms are highly overlapping and weak individually.** A single symptom often appears in many diseases, making it difficult to use one symptom as evidence for any meaningful conclusion. What matters is the **pattern**: which symptoms appear together, how consistently they co-occur, and whether certain symptom sets behave like a recognizable signature.
+2. **Interpretability is a core requirement for project evaluation.** In a final project setting, it is not enough to say “the model predicts X.” The project must explain:
+   - what patterns exist,
+   - how strong they are,
+   - and why those patterns should be trusted as data-driven evidence.
+3. **Noisy symptom tokens can break mining quality.** Formatting issues (underscores, inconsistent spacing, duplicates, missing symptom slots) fragment the item space and lead to misleading results. For ARM, consistency is critical because each symptom token becomes an item.
+4. **We need outcome-linked rules without sacrificing transparency.** A strong project should not only find symptom clusters, but also show how symptom combinations relate to disease labels—while remaining interpretable and measurable.
 
-This project addresses these challenges by applying **Association Rule Mining (ARM)** to solve an explainability-focused problem:
+This project solves an explainability-centered data mining problem:
 
-> **How can we extract clear, human-readable symptom patterns that (a) reveal reliable symptom co-occurrence structure and (b) produce interpretable symptom → disease associations, using a defensible Apriori-style mining approach?**
+> **How can we extract strong, human-readable patterns from symptom transactions—both symptom co-occurrence structure and symptom combinations linked to disease labels—using a defensible Apriori-based Association Rule Mining approach and presentation-quality evidence?**
 
-To answer this, the project treats each record as a **transaction (basket)** and mines:
-- **Symptom → Symptom rules** that expose co-occurrence signatures, and  
-- **Symptoms → Disease rules (Class Association Rules)** by representing the disease label as a special item (`disease::<DiseaseName>`), enabling direct discovery of disease-linked patterns within the ARM framework.
+To answer this, the project treats each row as a transaction (basket of symptoms) and mines:
+- **Symptom → Symptom rules** for co-occurrence structure, and  
+- **Symptoms → Disease rules** (Class Association Rules) by representing disease labels as a special item (`disease::<DiseaseName>`).
 
-Rather than producing a single prediction, the project produces a library of **transparent rules** with measurable strength—support, confidence, lift, and leverage—so patterns can be explained, ranked, and validated directly against the dataset.
+The output is not a black-box decision; it is a ranked set of **transparent rules**, supported by metrics and visuals that make conclusions easy to justify.
 
 ### Objectives
 
-- Build an end-to-end ARM workflow that converts the raw disease–symptom table into a high-quality transaction database suitable for frequent pattern mining.
-- Perform systematic **data cleaning and symptom standardization** to ensure item consistency (e.g., whitespace normalization, underscore handling, duplicate removal, empty symptom handling), preventing false item fragmentation.
-- Construct two transaction representations to support two complementary analyses:
-  - **Symptoms-only transactions** for mining symptom co-occurrence structure (Symptom → Symptom),
-  - **Heterogeneous transactions** by appending `disease::<DiseaseName>` to enable **Class Association Rules** (Symptoms → Disease).
-- Apply a canonical **Apriori-style frequent itemset mining strategy** (up to 3-itemsets) to balance interpretability, runtime feasibility, and presentation clarity.
-- Generate association rules from frequent itemsets and evaluate them using:
-  - **Support** (pattern prevalence),
-  - **Confidence** (conditional reliability),
-  - **Lift** (strength beyond chance),
-  - **Leverage** (absolute gain beyond chance; useful when lift is inflated by balanced class prevalence).
-- Use **Exploratory Data Analysis** to characterize symptom frequency, transaction sizes, and class distribution, and to justify parameter choices (e.g., minimum support thresholds).
-- Produce presentation-ready outputs:
-  - ranked rule tables for both rule categories,
-  - visual summaries that clearly communicate dataset structure and rule behavior (frequency plots, transaction-length distribution, similarity heatmap, and symptom–disease network visualization).
-- Deliver a final project artifact that emphasizes **explainability, transparency, and defensible interpretation**, aligned with the goals of association rule mining.
+This project aims to build a complete and verifiable ARM pipeline with outputs that are easy to present:
+
+- **Data Quality and Consistency**
+  - Clean and standardize symptom tokens to prevent item fragmentation (e.g., whitespace removal, underscore handling, normalization, and deduplication within transactions).
+  - Ensure disease labels remain consistent and suitable for class-based rule mining.
+
+- **Transaction Modeling**
+  - Construct **symptoms-only transactions** for pure co-occurrence mining.
+  - Construct **heterogeneous transactions** by appending `disease::<DiseaseName>` to support Class Association Rules (Symptoms → Disease).
+
+- **Apriori-Based Pattern Mining**
+  - Implement Apriori-style mining for frequent itemsets (1-itemsets, 2-itemsets, and 3-itemsets), applying pruning via minimum support thresholds.
+  - Keep itemsets small enough to remain interpretable, auditable, and presentation-ready.
+
+- **Rule Discovery and Evaluation**
+  - Generate association rules from frequent itemsets and rank them using:
+    - **Support** (prevalence),
+    - **Confidence** (conditional reliability),
+    - **Lift** (strength beyond chance),
+    - **Leverage** (absolute improvement beyond chance; helpful when lift inflates due to balanced class rates).
+
+- **Exploration, Interpretation, and Communication**
+  - Use EDA to understand symptom prevalence, transaction size distribution, and dataset structure.
+  - Produce clear tables and visuals that communicate both:
+    - dataset structure (frequency, distribution), and
+    - mining outcomes (rule quality, similarity, network structure).
 
 ### Scope and Limitations
 
-**Scope:**
+**Scope**
 - Mine **frequent symptom combinations** and generate **association rules** using an Apriori-style approach.
-- Produce two rule categories aligned with the project goals:
-  - **Symptom → Symptom** rules to reveal reliable co-occurrence patterns.
-  - **Symptoms → Disease** rules (Class Association Rules) using a heterogeneous item representation (`disease::<DiseaseName>`).
-- Evaluate rules using **support, confidence, lift, and leverage**, and present findings through clear visualizations (frequency charts, transaction-size distribution, Jaccard similarity heatmap, and symptom–disease network graph).
-- Focus on **interpretability and presentation-ready insights**, emphasizing rules that are easy to explain and verify directly from the dataset.
+- Produce two rule families aligned with ARM objectives:
+  - **Symptom → Symptom** rules to reveal co-occurrence signatures.
+  - **Symptoms → Disease** rules (CARs) using heterogeneous items (`disease::<DiseaseName>`).
+- Evaluate and present results using standard ARM metrics and visuals (frequency, transaction structure, similarity heatmap, rule-quality plot, bipartite network).
 
-**Limitations:**
-- The dataset is **perfectly class-balanced** (equal rows per disease), which can cause **lift values to appear very large** for high-confidence class rules; this is addressed by also reporting **leverage**.
-- Association rules capture **co-occurrence patterns**, not causation; a strong rule does not prove a medical relationship.
-- The mined rules reflect **patterns specific to this dataset** and may not generalize to real-world clinical populations or symptom reporting behavior.
-- Symptom tokens are treated as **binary presence/absence** (no severity, timing, duration, or patient context), which limits the realism of the patterns.
-- Rule quality depends on preprocessing; despite standardization, any remaining inconsistencies in symptom naming can still affect results.
+**Limitations**
+- The dataset is **perfectly class-balanced** (equal rows per disease), which can cause lift to become very large for confidence=1.0 class rules. The project addresses interpretability by reporting **leverage** alongside lift.
+- Association rules capture **co-occurrence**, not causation; strong rules do not prove medical relationships.
+- Symptom representation is **binary presence/absence** (no severity, timing, or context), limiting realism.
+- Findings reflect patterns in the dataset and may not generalize to real clinical populations.
+- Mining quality depends on preprocessing; any remaining inconsistencies in symptom naming can still affect results.
 
+---
 
 ## Dataset Description
 
@@ -123,88 +137,144 @@ Kaggle: Disease Symptom Description Dataset
 - **Diseases (classes):** 41  
 - **Rows per disease:** 120 each (perfectly balanced)  
 - **Unique symptoms:** 131  
-- **Symptoms per transaction:** min = 3, max = 17, average ≈ 7.45
+- **Symptoms per transaction:** min = 3, max = 17, average ≈ 7.45  
 
 ---
 
 ## Methodology
 
+This project is implemented in two notebooks:
+- `data_cleaning_standardization.ipynb` (cleaning + export of cleaned dataset and transactions)
+- `arm.ipynb` (EDA, frequent itemset counting, rule generation, ranking, and visualizations)
+
+### Pipeline Overview (End-to-End)
+1. **Load data** (prefer cleaned dataset if available)  
+2. **Clean & standardize symptom tokens** (consistent item space)  
+3. **Construct transactions** (symptoms-only and symptoms+disease)  
+4. **Count frequent itemsets (k = 1 to 3)** using an Apriori-style bounded strategy  
+5. **Generate rules** (Symptom→Symptom and Symptoms→Disease) with thresholds  
+6. **Compute metrics** (support, confidence, lift, leverage)  
+7. **Rank results + visualize** for presentation-ready interpretation  
+
 ### 1) Data Cleaning and Standardization
 Notebook: `data_cleaning_standardization.ipynb`
 
-Key preprocessing steps (ARM-critical):
-- Trim whitespace and remove accidental formatting artifacts
-- Standardize symptom tokens (e.g., converting underscores to spaces for readability)
-- Remove empty symptom slots and duplicates within a transaction
-- Ensure disease labels are clean/consistent (important for CAR mining)
+ARM is extremely sensitive to token inconsistency—two spellings of the same symptom become two different “items.” To prevent fragmented patterns, the notebook performs rule-based cleaning:
+
+- **Symptom token cleaning**
+  - trims whitespace,
+  - replaces underscores `_` with spaces,
+  - collapses repeated spaces,
+  - converts to lowercase (e.g., `"High_Fever "` → `"high fever"`),
+  - removes null/empty symptom fields.
+- **Disease label cleaning**
+  - strips leading/trailing whitespace while keeping the original wording.
+
+Outputs saved for reproducibility:
+- cleaned dataset: `outputs/dataset_cleaned.csv`
+- symptom-only transactions: `outputs/transactions_symptoms.csv`
+- symptom+disease transactions: `outputs/transactions_symptoms_plus_disease.csv`
 
 ### 2) Transaction Construction
 Notebook: `arm.ipynb`
 
-This project constructs **two transaction views**:
+Each row is modeled as a basket (set) of symptoms:
 
-1. **Symptoms-only transactions**  
-   Each row becomes a set of symptoms:  
-   `{symptom_1, symptom_2, …}`  
-   Used to mine Symptom → Symptom rules.
+- **Symptoms-only view**  
+  `sym_transactions`: each transaction = sorted unique symptom set  
+  Used for Symptom → Symptom rules.
 
-2. **Heterogeneous transactions (Symptoms + Disease-as-Item)**  
-   Each row becomes:  
-   `{symptom_1, symptom_2, …, disease::<DiseaseName>}`  
-   Used to mine **Class Association Rules** (Symptoms → Disease) in a unified ARM framework.
+- **Heterogeneous view (Symptoms + Disease-as-Item)**  
+  `sym_dis_transactions`: same symptom set plus a disease item `disease::<DiseaseName>`  
+  Used for Symptoms → Disease rules (CAR-style mining within ARM).
+
+Important transaction handling decisions (implemented in the notebook):
+- duplicates within a row are removed (`set()`),
+- transactions are sorted for consistent itemset keys,
+- transactions with at least 2 symptoms are kept for symptom-only mining (the dataset already satisfies this in practice).
 
 ### 3) Apriori Mining Strategy
-This project follows the canonical Apriori idea:
-- Count **1-itemsets**, **2-itemsets**, and **3-itemsets**
-- Apply **minimum support** thresholds to prune infrequent candidates
-- Keep itemsets small enough to remain interpretable in presentation
+This project uses an **Apriori-style bounded approach (k ≤ 3)** that is accurate to the notebook implementation:
 
-Why up to 3-itemsets?
-- Pairs and triples are easy to explain (“if these symptoms occur together…”)
-- Higher-order itemsets can become difficult to present and may overfit dataset quirks
+**Frequent itemset counting (k = 1, 2, 3)**
+- For each transaction, the notebook enumerates combinations of size 1, 2, and 3:
+  - **1-itemsets** counted via a `Counter` update (`c1`)
+  - **2-itemsets** counted via pair combinations (`c2`)
+  - **3-itemsets** counted via triple combinations (`c3`)
+- Pair and triple keys are kept in canonical order (sorted tuples) so counts are consistent.
+
+**Thresholding**
+Instead of generating larger candidate sets iteratively, the notebook:
+- counts all itemsets up to size 3 (feasible due to moderate basket sizes),
+- then applies minimum-support pruning using count thresholds:
+
+For Symptom → Symptom mining:
+- `min_support_ss = 0.03` → minimum count ≈ `ceil(0.03 × 4920) = 148`
+- `min_confidence_ss = 0.50`
+
+For Symptoms → Disease mining:
+- `min_support_sd = 0.02` → minimum count ≈ `ceil(0.02 × 4920) = 99`
+- `min_confidence_sd = 0.40`
+
+Why cap k at 3?
+- it keeps results interpretable (pairs and triples are easy to explain),
+- it keeps runtime small while still capturing meaningful symptom patterns,
+- it matches the project’s goal: explainable and presentation-ready rules.
 
 ### 4) Rule Generation
-Rules are generated from frequent itemsets:
+Rules are generated directly from counted frequent itemsets.
 
-- From a frequent 2-itemset `{A, B}`:
-  - `A → B` and `B → A`
-- From a frequent 3-itemset `{A, B, C}`:
-  - `{A, B} → C`, `{A, C} → B`, `{B, C} → A`
+**A) Symptom → Symptom rules**
+- From frequent pairs `(A, B)`:
+  - generate both directions `A → B` and `B → A` (each checked against confidence threshold).
+- From frequent triples `(A, B, C)`:
+  - generate `AB → C`, `AC → B`, `BC → A` (antecedent length = 2).
 
-For Class Association Rules:
-- The consequent is constrained to be a **disease item**:  
-  `{symptom(s)} → disease::<DiseaseName>`
+**B) Symptoms → Disease rules (Class Association Rules via heterogeneous items)**
+Rules are constrained so the **consequent must be a disease item**:
+
+- From 2-itemsets: `{symptom, disease::<X>}` → `symptom → disease::<X>`
+- From 3-itemsets: `{symptom1, symptom2, disease::<X>}` → `{symptom1, symptom2} → disease::<X>`
+
+To ensure correctness and clarity, the notebook only accepts triples that contain **exactly one disease item** and treats all remaining items as symptoms. Rules are kept only if they satisfy support and confidence thresholds.
 
 ### 5) Rule Quality Metrics
-Rules are evaluated using:
+For every rule `X → Y`, the notebook computes:
 
-- **Support**: how often X and Y occur together  
-- **Confidence**: probability of Y given X  
-- **Lift**: improvement over chance (confidence divided by base rate of Y)  
-- **Leverage**: absolute improvement over chance  
-  (useful when lift is inflated by balanced class distributions)
+- **Support:** `P(X ∪ Y)`  
+- **Confidence:** `P(Y | X)`  
+- **Lift:** `confidence / P(Y)` (strength beyond chance)  
+- **Leverage:** `P(X ∪ Y) − P(X)P(Y)` (absolute improvement beyond chance)
+
+Leverage is especially emphasized because the dataset’s balanced class distribution can inflate lift values for class rules.
 
 ### 6) Visualization Design
-To make the project “presentation-ready,” visuals are designed to answer specific questions:
+The notebook creates visuals that directly support interpretation and presentation:
 
-- What symptoms dominate the dataset?
-- How long are typical transactions?
-- Which symptoms are structurally similar (occur with similar partners)?
-- Which rules are both frequent and reliable?
-- How do symptom → disease relationships connect as a network?
+- **Transaction size histogram**: shows how many symptoms appear per record (basket size).
+- **Top symptom frequency bar chart**: highlights dominant symptoms and motivates multi-symptom rules.
+- **Jaccard similarity heatmap (top 20 symptoms)**: shows which frequent symptoms behave similarly across transactions using intersection/union similarity.
+- **Support vs Confidence bubble plot (Symptoms → Disease rules)**:
+  - selects a readable subset (top confident rules),
+  - bubble size reflects leverage,
+  - annotates standout rules for presentation.
+- **Bipartite symptom–disease network (top 35 edges)**:
+  - symptom nodes on one side, disease nodes on the other,
+  - edges represent strong single-symptom rules,
+  - edge width reflects relative rule strength for quick visual scanning.
 
 ### Reproducibility
 Run order:
-1. `data_cleaning_standardization.ipynb`  
-2. `arm.ipynb`
+1. `data_cleaning_standardization.ipynb` (generates cleaned outputs)  
+2. `arm.ipynb` (EDA → mining → rules → visuals)
 
-Export figures from `arm.ipynb` into an `images/` folder using the filenames referenced below.
+Figures exported from `arm.ipynb` should be placed in the `assets/` folder using the filenames referenced below.
 
 ---
 
 ## Exploratory Data Analysis
 
-EDA focuses on understanding symptom prevalence and transaction structure before mining rules.
+EDA is used to understand the dataset before rule mining.
 
 <!-- REQUIRED VISUAL (arm.ipynb): Title = "Disease Class Balance (Rows per Disease)" -->
 ![Disease Class Balance (Rows per Disease)](assets/disease_class_balance.png)
@@ -215,18 +285,36 @@ EDA focuses on understanding symptom prevalence and transaction structure before
 <!-- REQUIRED VISUAL (arm.ipynb): Title = "Distribution of Symptoms per Transaction" -->
 ![Distribution of Symptoms per Transaction](assets/distribution_of_symptoms.png)
 
-Key EDA highlights (from the dataset):
-- The dataset is **perfectly class-balanced** (120 rows per disease).
-- Common symptoms (e.g., fatigue, vomiting, fever) appear in a large share of rows, which explains why some co-occurrence rules become strong.
-- Average basket size is ~7–8 symptoms, making ARM feasible and interpretable.
+EDA highlights:
+- The dataset is class-balanced (equal rows per disease), influencing how lift behaves for class rules.
+- Some symptoms are extremely frequent across many diseases, motivating the need for multi-symptom rules.
+- Basket sizes are moderate (≈7–8 symptoms on average), making bounded Apriori counting feasible and interpretable.
 
 ---
 
 ## Results
 
+### Mining Summary (Configuration + Output Size)
+
+The following settings were used in `arm.ipynb`, and the mining produced rule sets that are large enough to be meaningful but still manageable for presentation:
+
+| Component | Thresholds / Output |
+|---|---|
+| **Symptom → Symptom** | `min_support = 0.03` (≥ 148 rows), `min_confidence = 0.50` |
+| **Symptoms → Disease (CAR)** | `min_support = 0.02` (≥ 99 rows), `min_confidence = 0.40` |
+| **# Symptom → Symptom rules** | **1,025** rules (143 single-antecedent, 882 two-antecedent) |
+| **# Symptoms → Disease rules** | **1,006** rules (120 single-symptom, 886 two-symptom) |
+| **Diseases covered by CAR rules** | **39 / 41** diseases under current thresholds |
+
+> Note: Two diseases (**Heart attack** and **Hepatitis D**) do not appear in the CAR rule set under the current minimum support/confidence thresholds. This is an important and meaningful outcome: it suggests that their symptom patterns are either less distinctive or do not meet the “high-coverage” requirement imposed by `min_support_sd`.
+
+---
+
 ### A) Symptom → Symptom Rules
 
-These rules capture **stable co-occurrence patterns**. Examples (high confidence + meaningful leverage):
+These rules capture **stable symptom co-occurrence patterns**—in other words, symptom clusters that behave like signatures in the dataset. Because rules pass both support and confidence thresholds, they represent patterns that are not only strong but also reasonably frequent.
+
+**Examples (high confidence + high leverage):**
 
 | Antecedent | Consequent | Support | Confidence | Lift | Leverage |
 |---|---|---:|---:|---:|---:|
@@ -236,15 +324,23 @@ These rules capture **stable co-occurrence patterns**. Examples (high confidence
 | abdominal pain | vomiting | 0.1768 | 0.8430 | 2.1670 | 0.0952 |
 | high fever | fatigue | 0.1988 | 0.7181 | 1.8286 | 0.0901 |
 
-Interpretation:
-- Some symptom groups form **tight clusters** (e.g., jaundice-related symptoms: yellowing of eyes + yellowish skin + appetite issues).
-- These clusters are exactly what ARM is good at: a compact set of rules you can explain clearly.
+**What these patterns mean (interpretation):**
+- Rules involving **yellowing of eyes / yellowish skin / loss of appetite** form a strong co-occurrence cluster, suggesting a consistent “jaundice-like” signature in the dataset.
+- **Nausea → vomiting** and **abdominal pain → vomiting** represent a gastrointestinal cluster that appears frequently across the transactions.
+- **High fever → fatigue** reflects the presence of general systemic symptoms that commonly travel together.
+
+**Standout rules by lift (highly specific co-occurrence):**  
+Some patterns are less common overall but are extremely “tight” when they occur. High-lift rules signal these specialized pairings:
+
+- *Example family:* rules involving **mood swings ↔ abnormal menstruation** show very high lift, indicating an unusually strong association compared to baseline symptom rates.
+
+---
 
 ### B) Symptoms → Disease Rules (Class Association Rules)
 
-Using the heterogeneous transaction approach, the project mines rules that directly connect symptoms to disease labels.
+The heterogeneous-item design enables class association rules where the consequent is always a disease label. Under the current settings, these rules tend to represent **high-coverage disease signatures**, because `min_support_sd = 0.02` requires the symptom(s) to appear in at least ~99 of the 120 records for that disease (in many cases, the symptom appears in all 120).
 
-In this dataset, many “signature symptoms” appear exclusively under a single disease class, producing **confidence = 1.0** rules. Sample examples:
+**Examples (single-symptom “signature” rules):**
 
 | Symptom | Disease | Support | Confidence | Lift |
 |---|---|---:|---:|---:|
@@ -254,77 +350,107 @@ In this dataset, many “signature symptoms” appear exclusively under a single
 | receiving blood transfusion | Hepatitis B | 0.0244 | 1.0000 | 41.0 |
 | blood in sputum | Tuberculosis | 0.0244 | 1.0000 | 41.0 |
 
-These rules are valuable for explainability because they are:
-- simple to read,
-- easy to validate against the dataset,
-- strong baselines for interpretable decision logic.
+**Examples (two-symptom CAR rules):**
+- `{increased appetite, polyuria} → Diabetes`  
+- `{back pain, pain behind the eyes} → Dengue`  
 
-**Required Visual from `arm.ipynb`: rule-quality view**
+These two-symptom rules are useful because they demonstrate how adding one extra symptom can produce a highly interpretable “evidence bundle” that aligns with a disease class.
 
-
+**Rule-quality view (support vs confidence; bubble size = leverage):**  
 ![Symptoms → Disease Rules: Support vs Confidence (Bubble Size = Leverage)](assets/support_vs_conf.png)
+
+**How to read this plot:**
+- Points toward the upper-right indicate rules that are both common (higher support) and reliable (higher confidence).
+- Bubble size emphasizes leverage, helping you prioritize rules that improve meaningfully beyond chance.
+- In this dataset, many strong class rules cluster near support ≈ 0.0244 because diseases have the same row count.
+
+---
 
 ### C) Cross-Pattern Structure (Similarity + Network)
 
-To show structure beyond isolated rules, the project visualizes similarity and connectivity.
-
 **1) Symptom similarity (Jaccard heatmap)**  
-This reveals which symptoms “travel together” across transactions, even if you don’t look at rules directly.
-
+The heatmap supports the symptom-cluster story by showing which frequent symptoms tend to share similar co-occurrence partners across transactions.
 
 ![Symptom Similarity Heatmap (Top 20 by Frequency) — Jaccard Similarity](assets/jaccard_similarity.png)
 
-**2) Bipartite network of strong Symptom → Disease rules**  
-This communicates relationships quickly in presentations: symptoms connect to diseases through strong edges.
+Why this matters:
+- Rules explain local “if–then” relationships.
+- Similarity structure explains global behavior: symptoms that repeatedly appear with similar symptom sets will form visible clusters.
 
+**2) Bipartite symptom–disease network (strong rules)**  
+This network is optimized for presentation: it quickly shows which symptoms connect strongly to which diseases under the strongest single-symptom rules.
 
 ![Bipartite Network of Strong Symptom → Disease Rules (Top 35)](assets/Bipartite_Network.png)
+
+Why this is powerful in a defense/presentation:
+- It communicates results visually in seconds (especially to non-technical viewers).
+- It highlights whether diseases are linked by shared symptoms (many connections) or dominated by distinctive signature symptoms (few, strong links).
 
 ---
 
 ## Discussion
 
 ### Key Insights
-- ARM produces **explainable symptom clusters** that can be discussed without black-box reasoning.
-- Class Association Rules reveal **disease signatures**—symptoms (or symptom pairs) that strongly imply a disease label.
-- Visual analytics (heatmap + network) make results easier to present than raw rule lists.
+
+**1) The dataset contains both “general” and “signature” symptoms—and ARM separates them clearly.**  
+EDA shows that some symptoms occur very frequently across many diseases (e.g., fever-like or fatigue-like symptoms). These items have high support but often lower lift because they are common everywhere. In contrast, signature symptoms (rare across the full dataset but frequent within a disease) generate rules with very high confidence and lift, making them excellent for explainable pattern discovery.
+
+**2) Symptom → Symptom rules reveal interpretable clusters that match real-world intuition, but remain dataset-grounded.**  
+The strongest symptom clusters in the results are not random. For example:
+- jaundice-related patterns (yellowing of eyes, yellowish skin, appetite loss),
+- gastrointestinal patterns (nausea, vomiting, abdominal pain),
+- systemic patterns (high fever with fatigue),
+form cohesive structures. This is important because it demonstrates that ARM is discovering consistent structure rather than noise.
+
+**3) The CAR approach (Symptoms → Disease) is effective because of how the dataset is structured.**  
+In this dataset, each disease class has 120 records, and many diseases include symptoms that appear in nearly all of those 120 records. With `min_support_sd = 0.02`, the project intentionally focuses on high-coverage disease rules—meaning rules that represent the disease class strongly across its examples. This is why many rules become confidence = 1.0 and support ≈ 0.0244 (120/4920).
+
+**4) Visual evidence strengthens the credibility of the mined rules.**  
+The project is not “tables only.” The visuals provide three layers of evidence:
+- EDA plots explain why multi-symptom mining is necessary (symptoms overlap and basket size is moderate).
+- Similarity heatmaps show cluster structure beyond isolated rules.
+- Network graphs communicate symptom–disease connectivity in a way that is easy to present and defend.
 
 ### Why Some Rules Look “Too Perfect”
-This dataset is **perfectly balanced** (each disease is exactly 120/4920 ≈ 2.44%).  
-So when a symptom uniquely identifies a disease and produces confidence = 1.0:
+Because the dataset is perfectly balanced (each disease has 120 rows), the baseline probability of any disease is:
 
-- The base probability of the disease is ~0.0244
-- Lift becomes roughly **1 / 0.0244 ≈ 41**
+- `P(disease) = 120 / 4920 ≈ 0.0244`
 
-That is mathematically correct for this dataset structure. To avoid misleading interpretation, the project includes **leverage** to show absolute improvement over chance.
+So if a rule has **confidence = 1.0** for a disease:
 
-### Limitations
-- ARM captures correlation patterns, not causation.
-- Dataset behavior may differ from real clinical populations.
-- Some symptoms may be “dataset-specific signatures,” which can inflate deterministic rules.
+- `lift = 1.0 / 0.0244 ≈ 41`
 
-### Future Improvements
-- Compare Apriori with FP-Growth for scalability.
-- Evaluate CARs as a simple rule-based classifier (train/test split).
-- Add rule pruning (redundancy removal) and coverage analysis.
-- Expand to higher-order itemsets only if interpretability remains strong.
+This is mathematically expected and does not automatically mean the rule is “clinically perfect.” It means: *within this dataset, this symptom combination is highly aligned with that disease label.*  
+That is why leverage is useful here: it reports the **absolute improvement beyond chance**, not just a ratio.
+
+### Limitations (Project-Specific and Important)
+- **Dataset-driven determinism:** Some diseases have symptom tokens that are nearly exclusive and extremely frequent within the class, producing many confidence=1 rules. This is excellent for explainability in a data-mining project, but it can overstate how “diagnostic” a symptom would be in real practice.
+- **Threshold sensitivity:**  
+  - Higher min support produces fewer but stronger “core” rules (current setup).  
+  - Lower min support would reveal more nuanced disease rules (possibly including Heart attack and Hepatitis D), but would also increase rule volume and the risk of weak/noisy rules.
+- **Binary symptom modeling:** Presence/absence ignores severity, timing, and co-morbid context; the dataset is treated as sets, not sequences or temporal signals.
+- **No external validation:** Rules are validated against the dataset through counts and metrics, but not against external medical sources (outside the project scope).
+
+### Future Improvements (High-Impact Next Steps)
+- **Parameter sweep + reporting:** Show how rule coverage and quality change as min support varies (e.g., 0.01–0.03). This is a strong final-project enhancement because it demonstrates methodological understanding.
+- **Rule redundancy pruning:** Remove rules that are logically redundant or dominated by stronger variants to produce a cleaner final rule list.
+- **Coverage analysis per disease:** Report how many records in each disease are “covered” by top-k rules (helps explain why some diseases have fewer strong rules).
+- **Rule-based classifier evaluation:** Use the CARs as an interpretable classifier and report accuracy/coverage on a train/test split (still explainable, but more rigorous).
 
 ---
 
 ## Conclusion
 
-This project demonstrates an end-to-end, presentation-grade Association Rule Mining pipeline for a disease–symptom dataset. It delivers:
+This project delivers a complete, presentation-ready Association Rule Mining pipeline for disease–symptom data. By combining:
+- rigorous preprocessing,
+- Apriori-based frequent itemset mining (bounded to k ≤ 3),
+- rule generation for both co-occurrence and class association rules,
+- and evidence-driven visuals,
 
-- Clean transaction creation from tabular symptom records
-- Interpretable Symptom → Symptom association rules
-- Class Association Rules (Symptoms → Disease) using heterogeneous items
-- Strong, presentation-friendly visuals that explain frequency, structure, rule quality, and network relationships
-
-Overall, the project emphasizes **explainability, clarity, and defensible metrics**, making it well-suited as a final ARM project deliverable.
+the project demonstrates how ARM can extract interpretable structure from a symptom dataset and communicate results clearly with defensible metrics.
 
 ---
 
 ## Demo
 
 Add your video link here:
-
